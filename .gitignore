@@ -1,3 +1,113 @@
 node_modules
 config.js
 .env
+
+
+
+
+
+https://teligram-bot-node.onrender.com
+
+
+
+
+curl -F "url=https://teligram-bot-node.onrender.com/bot8361067153:AAHnm_IFgbwcowCAXAseiLn1HaqIuKjFW2c" https://api.telegram.org/bot8361067153:AAHnm_IFgbwcowCAXAseiLn1HaqIuKjFW2c/setWebhook/setWebhook
+
+
+
+
+
+ঠিক আছে, Render-এ হোস্ট করা Bot-এর webhook এবং সার্ভার ঠিক কাজ করছে কিনা চেক করার জন্য কিছু ধাপ আছে। আমরা Ngrok-এর মতো লোকাল testing না করে সরাসরি Render এর public URL ব্যবহার করব।
+
+
+---
+
+১️⃣ Render public URL নিশ্চিত করা
+
+Render deploy করার পরে আপনাকে public URL দেবে, যেমনঃ
+
+https://my-telegram-bot.onrender.com
+
+Express সার্ভার ওই URL-এ চলবে।
+
+Telegram webhook-এ আমরা এই URL ব্যবহার করব।
+
+
+
+---
+
+২️⃣ Webhook সেট করা
+
+Webhook URL এর ফরম্যাট হবে:
+
+<Render-URL>/bot<TOKEN>
+
+উদাহরণ:
+
+https://my-telegram-bot.onrender.com/bot8361067153:AAHnm_IFgbwcowCAXAseiLn1HaqIuKjFW2c
+
+Webhook সেট করতে Telegram API কল:
+
+curl -F "url=https://my-telegram-bot.onrender.com/bot8361067153:AAHnm_IFgbwcowCAXAseiLn1HaqIuKjFW2c" https://api.telegram.org/bot8361067153:AAHnm_IFgbwcowCAXAseiLn1HaqIuKjFW2c/setWebhook
+
+সঠিক হলে response আসবে:
+
+
+{"ok":true,"result":true,"description":"Webhook was set"}
+
+
+---
+
+৩️⃣ Webhook status চেক করা
+
+curl https://api.telegram.org/bot8361067153:AAHnm_IFgbwcowCAXAseiLn1HaqIuKjFW2c/getWebhookInfo
+
+Response এ দেখুন "url" আপনার Render URL দেখাচ্ছে কি না।
+
+"pending_update_count" > 0 হলে Telegram বট-এ মেসেজ pending আছে।
+
+
+
+---
+
+৪️⃣ Server log চেক করা
+
+Render-এর Dashboard → Logs দেখুন:
+
+Telegram message পাঠানোর পর Express route call হচ্ছে কিনা।
+
+আপনার bot.on('message', ...) log আসছে কিনা।
+
+
+
+---
+
+৫️⃣ Test
+
+1. Telegram এ বটে message পাঠান।
+
+
+2. Render logs-এ console.log দেখুন।
+
+
+3. Bot reply করা উচিত।
+
+
+
+
+---
+
+💡 Tip:
+
+Render public URL HTTPS হয়, Telegram webhook এর জন্য অবশ্যই HTTPS থাকতে হবে।
+
+যদি কোনো 404 বা 502 আসে, নিশ্চিত করুন route /bot<TOKEN> ঠিক আছে।
+
+
+
+---
+
+আপনি চাইলে আমি আপনাকে Render-ready Node.js Telegram bot structure বানিয়ে দেখাতে পারি, যা deploy করলেই সরাসরি webhook কাজ করবে।
+
+আপনি কি সেটা চাইবেন?
+
