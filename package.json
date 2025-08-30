@@ -1,0 +1,19 @@
+{
+  "name": "teligram_bot_node",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tensorflow-models/toxicity": "^1.2.2",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "node-telegram-bot-api": "^0.66.0",
+    "sentiment": "^5.0.2"
+  },
+  "description": ""
+}
