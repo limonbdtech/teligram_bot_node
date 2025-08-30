@@ -1,17 +1,18 @@
+// bot.js
 const express = require("express");
 const bodyParser = require("body-parser");
 const TelegramBot = require("node-telegram-bot-api");
 const Sentiment = require("sentiment");
-const config = require("./config");
+const config = require("./config"); // BOT_TOKEN + WEBHOOK_URL
 
 const app = express();
 app.use(bodyParser.json());
 
-// Initialize bot
-const bot = new TelegramBot(config.BOT_TOKEN, { webHook: true });
+// Initialize bot (no polling)
+const bot = new TelegramBot(config.BOT_TOKEN);
 const sentiment = new Sentiment();
 
-// Bad words / phrases
+// Wordlist / Phrase list (Bangla + English)
 const wordlist = [
   'চুদি','চোদ','মাগী','হারামি','গাধা','বোকা','চুতমারানি','খানকিরপোলা','শুয়োর',
   'শালা','মাদারচোদ','বাপচোদ','চুতিয়া','chudi','chod','magi','harami','gadha','boka',
@@ -22,7 +23,7 @@ const wordlist = [
   'Pulu Marma বাটপার','Pulu Marma চোর'
 ];
 
-// Track offenses
+// Track user offenses
 const userOffenses = {};
 
 // Set webhook
@@ -30,7 +31,7 @@ bot.setWebHook(`${config.WEBHOOK_URL}/bot${config.BOT_TOKEN}`);
 
 // Webhook route
 app.post(`/bot${config.BOT_TOKEN}`, (req, res) => {
-  bot.processUpdate(req.body);
+  bot.processUpdate(req.body); // pass update to bot
   res.sendStatus(200);
 });
 
@@ -41,30 +42,34 @@ bot.on("message", async (msg) => {
   const username = msg.from.username || msg.from.first_name || userId;
   const text = msg.text || "";
 
+  // Clean text
   const cleanText = text.replace(/[.,!?;:()\[\]{}"]/g, " ").trim().toLowerCase();
 
-  const detectedWords = wordlist.filter(word => {
-    const pattern = word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
-    const regex = new RegExp(`\\b${pattern}\\b`, "i");
-    return regex.test(cleanText);
-  });
+  // Detect bad words (just contains)
+  const detectedWords = wordlist.filter(word => cleanText.includes(word.toLowerCase()));
 
+  // Sentiment analysis
   const sentimentScore = sentiment.analyze(cleanText).score;
 
-  if(detectedWords.length > 0 || sentimentScore < -2){
+  if (detectedWords.length > 0 || sentimentScore < -2) {
     const timestamp = new Date().toLocaleString();
     console.log(`❌ [${timestamp}] BAD MESSAGE from ${username}: "${text}"`);
-    console.log(`Detected bad words/phrases: ${detectedWords.join(", ")}`);
+    console.log(`Detected: ${detectedWords.join(", ")}`);
     console.log(`Sentiment score: ${sentimentScore}`);
 
+    // Delete message
     await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+
+    // Track offenses
     userOffenses[userId] = (userOffenses[userId] || 0) + 1;
 
+    // Ban user
     await bot.banChatMember(chatId, userId).catch(() => {});
 
+    // Send reason
     let reason = [];
-    if(detectedWords.length > 0) reason.push(`Words/phrases: ${detectedWords.join(", ")}`);
-    if(sentimentScore < -2) reason.push(`Negative sentiment (score: ${sentimentScore})`);
+    if (detectedWords.length > 0) reason.push(`Words/phrases: ${detectedWords.join(", ")}`);
+    if (sentimentScore < -2) reason.push(`Negative sentiment (score: ${sentimentScore})`);
 
     bot.sendMessage(chatId, `⛔ User ${username} permanently banned for: ${reason.join("; ")}`);
   } else {
@@ -73,12 +78,12 @@ bot.on("message", async (msg) => {
   }
 });
 
-// Root route
+// Home route (for Render check)
 app.get('/', (req, res) => {
-  res.send('Telegram Bot is running ✅');
+  res.send('Bot is running ✅');
   console.log("Visited home page");
 });
 
-// Start server
+// Start Express server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
