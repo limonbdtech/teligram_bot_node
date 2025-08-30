@@ -1,7 +1,7 @@
 {
   "name": "teligram_bot_node",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
@@ -12,6 +12,8 @@
     "@tensorflow-models/toxicity": "^1.2.2",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-node": "^4.22.0",
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
     "node-telegram-bot-api": "^0.66.0",
     "sentiment": "^5.0.2"
   },

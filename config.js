@@ -1,5 +1,6 @@
 module.exports = {
   BOT_TOKEN: process.env.BOT_TOKEN || '8361067153:AAHnm_IFgbwcowCAXAseiLn1HaqIuKjFW2c',
+  WEBHOOK_URL:"https://teligram-bot-node.onrender.com/",
   TOXICITY_THRESHOLD: 0.9,
   SENTIMENT_THRESHOLD: -2,
   WARN_LIMIT: 1, // প্রথমবার warning
