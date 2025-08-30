@@ -14,8 +14,7 @@ const wordlist = [
   'scam', 'fraud', 'cheat', 'looter', 'conman', 'admin fraud', 'fake', 'thief',
   'এডমিন চুদি', 'এডমিন চোর', 'এডমিন খারাপ', 'this is a scam', 'admin fraud',
   '@pulumarm একজন বাটপার','pulu marma একজন বাটপার','pulu marma টাকা মেরে খায়',
-  '@pulumarma  বাটপার','pulu marma চোর','pulu marma একজন বাটপার','পুলু মারমা চোর',
-   'পুলু মারমা বাটপার', 'পুলু মারমা মানুষের টাকা মেরে খায়' 
+  '@pulumarma  বাটপার', 
 ].map(w => w.toLowerCase());
 
 const bot = new TelegramBot(config.BOT_TOKEN, { polling: true });

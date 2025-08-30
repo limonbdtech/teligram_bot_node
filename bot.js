@@ -17,10 +17,11 @@ const wordlist = [
   'চুদি','চোদ','মাগী','হারামি','গাধা','বোকা','চুতমারানি','খানকিরপোলা','শুয়োর',
   'শালা','মাদারচোদ','বাপচোদ','চুতিয়া','chudi','chod','magi','harami','gadha','boka',
   'chutmarani','khanakirpola','shuar','shala','madarchod','bapchod','chutiya','fuck',
-  'motherfucker','shit','bitch','asshole','bastard','idiot','scam','fraud','cheat',
+  'motherfucker','shit','bitch','asshole','bastard','idiot','fraud','cheat',
   'looter','conman','admin fraud','fake','thief',
   'এডমিন চুদি','এডমিন চোর','এডমিন খারাপ','this is a scam','admin fraud',
-  'Pulu Marma বাটপার','Pulu Marma চোর'
+  'Pulu Marma বাটপার','Pulu Marma চোর','pulu marma চোর','pulu marma একজন বাটপার','পুলু মারমা চোর',
+   'পুলু মারমা বাটপার', 'পুলু মারমা মানুষের টাকা মেরে খায়'
 ];
 
 // Track user offenses
@@ -53,9 +54,9 @@ bot.on("message", async (msg) => {
 
   if (detectedWords.length > 0 || sentimentScore < -2) {
     const timestamp = new Date().toLocaleString();
-    console.log(`❌ [${timestamp}] BAD MESSAGE from ${username}: "${text}"`);
-    console.log(`Detected: ${detectedWords.join(", ")}`);
-    console.log(`Sentiment score: ${sentimentScore}`);
+    // console.log(`❌ [${timestamp}] BAD MESSAGE from ${username}: "${text}"`);
+    // console.log(`Detected: ${detectedWords.join(", ")}`);
+    // console.log(`Sentiment score: ${sentimentScore}`);
 
     // Delete message
     await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
@@ -74,14 +75,13 @@ bot.on("message", async (msg) => {
     bot.sendMessage(chatId, `⛔ User ${username} permanently banned for: ${reason.join("; ")}`);
   } else {
     const timestamp = new Date().toLocaleString();
-    console.log(`✅ [${timestamp}] Safe message from ${username}: "${text}"`);
+    // console.log(`✅ [${timestamp}] Safe message from ${username}: "${text}"`);
   }
 });
 
 // Home route (for Render check)
 app.get('/', (req, res) => {
   res.send('Bot is running ✅');
-  console.log("Visited home page");
 });
 
 // Start Express server
