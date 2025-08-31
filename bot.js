@@ -20,8 +20,8 @@ const wordlist = [
   'motherfucker','shit','bitch','asshole','bastard','idiot','fraud','cheat',
   'looter','conman','admin fraud','fake','thief',
   'এডমিন চুদি','এডমিন চোর','এডমিন খারাপ','this is a scam','admin fraud',
-  'Pulu Marma বাটপার','Pulu Marma চোর','pulu marma চোর','pulu marma একজন বাটপার','পুলু মারমা চোর',
-   'পুলু মারমা বাটপার', 'পুলু মারমা মানুষের টাকা মেরে খায়'
+  'Pulu Marma বাটপার','Pulu Marma চোর','pulu marma চোর','pulu marma একজন বাটপার',
+  'পুলু মারমা চোর','পুলু মারমা বাটপার','পুলু মারমা মানুষের টাকা মেরে খায়'
 ];
 
 // Track user offenses
@@ -53,10 +53,6 @@ bot.on("message", async (msg) => {
   const sentimentScore = sentiment.analyze(cleanText).score;
 
   if (detectedWords.length > 0 || sentimentScore < -2) {
-    const timestamp = new Date().toLocaleString();
-    // console.log(`❌ [${timestamp}] BAD MESSAGE from ${username}: "${text}"`);
-    // console.log(`Detected: ${detectedWords.join(", ")}`);
-    // console.log(`Sentiment score: ${sentimentScore}`);
 
     // Delete message
     await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
@@ -67,15 +63,19 @@ bot.on("message", async (msg) => {
     // Ban user
     await bot.banChatMember(chatId, userId).catch(() => {});
 
-    // Send reason
+    // Prepare Police Mode BAN message
     let reason = [];
-    if (detectedWords.length > 0) reason.push(`Words/phrases: ${detectedWords.join(", ")}`);
-    if (sentimentScore < -2) reason.push(`Negative sentiment (score: ${sentimentScore})`);
+    if (detectedWords.length > 0) reason.push(`🧨 গালির শব্দ: ${detectedWords.join(", ")}`);
+    if (sentimentScore < -2) reason.push(`😡 নেতিবাচক মেসেজ (Score: ${sentimentScore})`);
 
-    bot.sendMessage(chatId, `⛔ User ${username} permanently banned for: ${reason.join("; ")}`);
-  } else {
-    const timestamp = new Date().toLocaleString();
-    // console.log(`✅ [${timestamp}] Safe message from ${username}: "${text}"`);
+    const banMessage =
+      `🚔👮 পুলিশের জরুরি অভিযান 👮🚔\n\n` +
+      `🔗 অপরাধী: @${username}\n` +
+      `📌 অভিযোগ: ${reason.join(" | ")}\n\n` +
+      `⚖️ রায়: স্থায়ী কারাদণ্ড (BAN) ⛔\n` +
+      `🚓 নোট: গ্রুপে গালি দিলে পুলিশ এসে ধরে নিয়ে যায় 🤭`;
+
+    await bot.sendMessage(chatId, banMessage);
   }
 });
 
@@ -86,4 +86,4 @@ app.get('/', (req, res) => {
 
 // Start Express server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {});
