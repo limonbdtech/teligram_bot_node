@@ -1,23 +1,19 @@
 {
-  "name": "teligram_bot_node",
+  "name": "telegram-bot",
   "version": "1.0.0",
+  "description": "Telegram bot with police mode, greetings, and market updates",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "@tensorflow-models/toxicity": "^1.0.3",
-    "@tensorflow/tfjs": "^4.22.0",
-    "@tensorflow/tfjs-node": "^4.22.0",
-    "body-parser": "^2.2.0",
-    "express": "^5.1.0",
-    "node-cron": "^4.2.1",
-    "node-telegram-bot-api": "^0.63.0",
-    "nodemon": "^3.1.10",
-    "sentiment": "^5.0.2"
-  },
-  "description": ""
+    "express": "^4.18.2",
+    "body-parser": "^1.20.2",
+    "node-telegram-bot-api": "^0.61.0",
+    "node-cron": "^3.0.2",
+    "axios": "^1.7.0",
+    "sentiment": "^5.0.1",
+    "@tensorflow/tfjs-node": "4.22.0",
+    "@tensorflow-models/toxicity": "1.0.3"
+  }
 }
