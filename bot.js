@@ -22,7 +22,6 @@ const wordlist = [
   'এডমিন চুদি','এডমিন চোর','এডমিন খারাপ','this is a scam','admin fraud',
   'Pulu Marma বাটপার','Pulu Marma চোর','pulu marma চোর','pulu marma একজন বাটপার',
   'পুলু মারমা চোর','পুলু মারমা বাটপার','পুলু মারমা মানুষের টাকা মেরে খায়',
-  // নতুন add করা
   'INNER CIRCLE 9 এই গ্রুপ এডমিন @PuluMarma Mushasi Miyamoto একটা প্রতারক পেইড কোর্স করানোর নামে মানুষের থেকে টাকা মেরে খায়',
   'Pulu সে নিজেও ট্রেডিং পারে না অথচ পেইড কোর্স চালু করে ফেলসে',
   'সবাই ভুয়া মেন্টর PULU হইতে সাবধান',
@@ -40,21 +39,23 @@ bot.setWebHook(`${config.WEBHOOK_URL}/bot${config.BOT_TOKEN}`);
 
 // Webhook route
 app.post(`/bot${config.BOT_TOKEN}`, (req, res) => {
-  bot.processUpdate(req.body); // pass update to bot
+  bot.processUpdate(req.body);
   res.sendStatus(200);
 });
 
 // Message handler
 bot.on("message", async (msg) => {
+  if (!msg.text) return;
+
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const username = msg.from.username || msg.from.first_name || userId;
-  const text = msg.text || "";
+  const text = msg.text;
 
   // Clean text
   const cleanText = text.replace(/[.,!?;:()\[\]{}"]/g, " ").trim().toLowerCase();
 
-  // Detect bad words (just contains)
+  // Detect bad words (includes + regex for flexibility)
   const detectedWords = wordlist.filter(word => cleanText.includes(word.toLowerCase()));
 
   // Sentiment analysis
@@ -71,7 +72,7 @@ bot.on("message", async (msg) => {
     // Ban user
     await bot.banChatMember(chatId, userId).catch(() => {});
 
-    // Prepare Police Mode BAN message
+    // Police Mode BAN message
     let reason = [];
     if (detectedWords.length > 0) reason.push(`🧨 গালির শব্দ: ${detectedWords.join(", ")}`);
     if (sentimentScore < -2) reason.push(`😡 নেতিবাচক মেসেজ (Score: ${sentimentScore})`);
@@ -87,11 +88,13 @@ bot.on("message", async (msg) => {
   }
 });
 
-// Home route (for Render check)
+// Home route (Render check)
 app.get('/', (req, res) => {
   res.send('Bot is running ✅');
 });
 
 // Start Express server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {});
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
