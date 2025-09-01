@@ -64,7 +64,7 @@ cron.schedule('0 8 * * *', () => {
 });
 
 // রাত শুভেচ্ছা 21:00
-cron.schedule('0 22 * * *', () => {
+cron.schedule('0 21 * * *', () => {
     bot.sendMessage(config.GROUP_CHAT_ID, 'শুভ রাত্রি! 🌙');
 });
 
