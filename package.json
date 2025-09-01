@@ -9,12 +9,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@tensorflow-models/toxicity": "^1.2.2",
+    "@tensorflow-models/toxicity": "^1.0.3",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-node": "^4.22.0",
     "body-parser": "^2.2.0",
     "express": "^5.1.0",
-    "node-telegram-bot-api": "^0.66.0",
+    "node-cron": "^4.2.1",
+    "node-telegram-bot-api": "^0.63.0",
     "nodemon": "^3.1.10",
     "sentiment": "^5.0.2"
   },
