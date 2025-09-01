@@ -61,3 +61,7 @@ bot.on("message", async (msg) => {
     console.log(`✅ [${timestamp}] Safe message from ${username}: "${text}"`);
   }
 });
+
+
+
+

@@ -3,6 +3,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const TelegramBot = require("node-telegram-bot-api");
 const Sentiment = require("sentiment");
+const cron = require("node-cron");
+const axios = require("axios");
 const config = require("./config"); // BOT_TOKEN + WEBHOOK_URL
 
 const app = express();
@@ -12,7 +14,9 @@ app.use(bodyParser.json());
 const bot = new TelegramBot(config.BOT_TOKEN);
 const sentiment = new Sentiment();
 
-// Wordlist / Phrase list (Bangla + English)
+// ========================
+// Existing wordlist / Police Mode code unchanged
+// ========================
 const wordlist = [
   'চুদি','চোদ','মাগী','হারামি','গাধা','বোকা','চুতমারানি','খানকিরপোলা','শুয়োর',
   'শালা','মাদারচোদ','বাপচোদ','চুতিয়া','chudi','chod','magi','harami','gadha','boka',
@@ -30,8 +34,6 @@ const wordlist = [
   'যেসব ANALYSIS দেয় বেশিরভাগই SL হিট খায়',
   'Pulu যে ট্রেডিং পারে ওকে একটা প্রমাণ দিতে বলেন তো'
 ];
-
-// Track user offenses
 const userOffenses = {};
 
 // Set webhook
@@ -43,7 +45,69 @@ app.post(`/bot${config.BOT_TOKEN}`, (req, res) => {
   res.sendStatus(200);
 });
 
-// Message handler
+// ========================
+// ১. নতুন সদস্য স্বাগতম
+// ========================
+bot.on("new_chat_members", (msg) => {
+    msg.new_chat_members.forEach(member => {
+        bot.sendMessage(msg.chat.id, `Welcome to the group 🎉 ${member.first_name}`);
+    });
+});
+
+// ========================
+// ২. টাইম-ভিত্তিক মেসেজ (cron)
+// ========================
+
+// সকাল শুভেচ্ছা 08:00
+cron.schedule('0 8 * * *', () => {
+    bot.sendMessage(config.GROUP_CHAT_ID, 'সুপ্রভাত! 🌞');
+});
+
+// রাত শুভেচ্ছা 21:00
+cron.schedule('0 22 * * *', () => {
+    bot.sendMessage(config.GROUP_CHAT_ID, 'শুভ রাত্রি! 🌙');
+});
+
+// শুক্রবার জুমা মোবারক 09:00
+cron.schedule('0 9 * * 5', () => {
+    bot.sendMessage(config.GROUP_CHAT_ID, 'জুমা মোবারক! 🕌');
+});
+
+// ========================
+// ৩. Market Update (BTC + Forex + US100)
+// ========================
+async function sendMarketUpdate() {
+    try {
+        // USD/EUR
+        const eurusd = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=EUR');
+        const usdEur = eurusd.data.rates.EUR;
+
+        // USD/GBP
+        const gbpusd = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=GBP');
+        const usdGbp = gbpusd.data.rates.GBP;
+
+        // US 100 (Nasdaq)
+        const us100 = await axios.get('https://query1.finance.yahoo.com/v7/finance/quote?symbols=^NDX');
+        const us100Price = us100.data.quoteResponse.result[0].regularMarketPrice;
+
+        // Bitcoin USD
+        const btc = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+        const btcPrice = btc.data.bitcoin.usd;
+
+        const message = `📊 Market Update:\n\nUSD/EUR: ${usdEur.toFixed(4)}\nUSD/GBP: ${usdGbp.toFixed(4)}\nUS 100: ${us100Price}\nBTC/USD: ${btcPrice}`;
+        bot.sendMessage(config.GROUP_CHAT_ID, message);
+
+    } catch (error) {
+        console.error('Market Update Error:', error.message);
+    }
+}
+
+// প্রতি ১ ঘন্টা Market Update
+cron.schedule('0 * * * *', sendMarketUpdate);
+
+// ========================
+// ৪. Message handler (existing Police Mode)
+// ========================
 bot.on("message", async (msg) => {
   if (!msg.text) return;
 
@@ -52,27 +116,15 @@ bot.on("message", async (msg) => {
   const username = msg.from.username || msg.from.first_name || userId;
   const text = msg.text;
 
-  // Clean text
   const cleanText = text.replace(/[.,!?;:()\[\]{}"]/g, " ").trim().toLowerCase();
-
-  // Detect bad words (includes + regex for flexibility)
   const detectedWords = wordlist.filter(word => cleanText.includes(word.toLowerCase()));
-
-  // Sentiment analysis
   const sentimentScore = sentiment.analyze(cleanText).score;
 
   if (detectedWords.length > 0 || sentimentScore < -2) {
-
-    // Delete message
     await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
-
-    // Track offenses
     userOffenses[userId] = (userOffenses[userId] || 0) + 1;
-
-    // Ban user
     await bot.banChatMember(chatId, userId).catch(() => {});
 
-    // Police Mode BAN message
     let reason = [];
     if (detectedWords.length > 0) reason.push(`🧨 গালির শব্দ: ${detectedWords.join(", ")}`);
     if (sentimentScore < -2) reason.push(`😡 নেতিবাচক মেসেজ (Score: ${sentimentScore})`);
@@ -88,7 +140,7 @@ bot.on("message", async (msg) => {
   }
 });
 
-// Home route (Render check)
+// Home route
 app.get('/', (req, res) => {
   res.send('Bot is running ✅');
 });
