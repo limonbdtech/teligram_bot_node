@@ -75,7 +75,7 @@ cron.schedule('0 9 * * 5', () => {
 
 // ========================
 // ========================
-// ৩. Market Update (BTC + Forex + US100)
+// ৩. Market Update (BTC + Forex + US100 + Holiday Check)
 // ========================
 async function sendMarketUpdate() {
     try {
@@ -86,31 +86,58 @@ async function sendMarketUpdate() {
         let forexMsg = "";
         let us100Msg = "";
 
-        // Forex Market (Mon-Fri 08:00–00:00)
+        // -------- Forex Market (Mon–Fri, 08:00–00:00) --------
         if (day !== 0 && day !== 6 && hour >= 8 && hour < 24) {
-            const eurusd = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=EUR');
-            const usdEur = eurusd.data.rates.EUR;
-            const gbpusd = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=GBP');
-            const usdGbp = gbpusd.data.rates.GBP;
-            forexMsg = `USD/EUR: ${usdEur.toFixed(4)}\nUSD/GBP: ${usdGbp.toFixed(4)}`;
+            try {
+                const eurusd = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=EUR');
+                const usdEur = eurusd.data.rates.EUR;
+                const gbpusd = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=GBP');
+                const usdGbp = gbpusd.data.rates.GBP;
+                forexMsg = `USD/EUR: ${usdEur.toFixed(4)}\nUSD/GBP: ${usdGbp.toFixed(4)}`;
+            } catch (err) {
+                if (err.response && err.response.status === 403) {
+                    forexMsg = "⚠️ Forex Market Data: Unauthorized (API সীমাবদ্ধ)";
+                } else {
+                    forexMsg = "📢 Forex Market Closed (Bank Holiday বা API Error)";
+                }
+            }
         } else {
             forexMsg = "📢 Forex Market Closed (Weekend / Off Hours)";
         }
 
-        // US100 (Nasdaq)
+        // -------- US100 (Nasdaq) --------
         if (day !== 0 && day !== 6 && hour >= 8 && hour < 24) {
-            const us100 = await axios.get('https://query1.finance.yahoo.com/v7/finance/quote?symbols=^NDX');
-            const us100Price = us100.data.quoteResponse.result[0].regularMarketPrice;
-            us100Msg = `US100: ${us100Price}`;
+            try {
+                const us100 = await axios.get('https://query1.finance.yahoo.com/v7/finance/quote?symbols=^NDX');
+                const us100Price = us100.data.quoteResponse.result[0]?.regularMarketPrice;
+                if (us100Price) {
+                    us100Msg = `US100: ${us100Price}`;
+                } else {
+                    us100Msg = "📢 US100 Data Not Available (Maybe Bank Holiday)";
+                }
+            } catch (err) {
+                if (err.response && err.response.status === 401) {
+                    us100Msg = "⚠️ US100 Market Data: Unauthorized (API সীমাবদ্ধ)";
+                } else {
+                    us100Msg = "📢 US100 Market Closed (Bank Holiday বা API Error)";
+                }
+            }
         } else {
             us100Msg = "📢 US100 Market Closed (Weekend / Off Hours)";
         }
 
-        // Bitcoin 24/7
-        const btc = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
-        const btcPrice = btc.data.bitcoin.usd;
+        // -------- Bitcoin 24/7 --------
+        let btcMsg = "";
+        try {
+            const btc = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+            const btcPrice = btc.data.bitcoin.usd;
+            btcMsg = `BTC/USD: ${btcPrice}`;
+        } catch {
+            btcMsg = "⚠️ BTC Data Fetch Error";
+        }
 
-        const message = `📊 Market Update:\n\n${forexMsg}\n${us100Msg}\nBTC/USD: ${btcPrice}`;
+        // -------- Final Message --------
+        const message = `📊 Market Update:\n\n${forexMsg}\n${us100Msg}\n${btcMsg}`;
         bot.sendMessage(config.GROUP_CHAT_ID, message);
 
     } catch (error) {
@@ -120,7 +147,9 @@ async function sendMarketUpdate() {
 
 // প্রতি ১ ঘন্টা Market Update
 cron.schedule('0 * * * *', sendMarketUpdate);
-// ========================
+
+
+
 // ৪. Message handler (existing Police Mode)
 // ========================
 bot.on("message", async (msg) => {
