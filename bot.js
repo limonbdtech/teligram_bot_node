@@ -87,11 +87,24 @@ cron.schedule('0 9 * * 5', () => {
 // ========================
 // ৩. Market Update (BTC + Forex + US100 + Holiday Check)
 // ========================
+// ========================
+// ৩. Market Update (Formatted Message)
+// ========================
+const axios = require("axios");
 
+// উদাহরণ Bank Holiday List (Bangladesh / US)
+const bankHolidays = [
+    "2025-01-01", // New Year
+    "2025-12-25", // Christmas
+    "2025-02-21", // Language Movement Day BD
+    "2025-03-26", // Independence Day BD
+    "2025-04-14"  // Pohela Boishakh BD
+];
 
 async function sendMarketUpdate() {
     try {
         const now = new Date();
+        const todayStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
         const hour = now.getUTCHours() + 6; // BD Time (UTC+6)
         const day = now.getDay(); // 0=Sunday, 6=Saturday
 
@@ -99,61 +112,59 @@ async function sendMarketUpdate() {
         let us100Msg = "";
         let btcMsg = "";
 
-        // -------- Forex Market (Mon–Fri 08:00–00:00) --------
-        if (day !== 0 && day !== 6 && hour >= 8 && hour < 24) {
+        const isWeekend = (day === 0 || day === 6);
+        const isBankHoliday = bankHolidays.includes(todayStr);
+
+        // -------- Forex Market --------
+        if (!isWeekend && !isBankHoliday && hour >= 8 && hour < 24) {
             try {
-                const forex = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=EUR,GBP');
-                const usdEur = forex.data.rates.EUR;
-                const usdGbp = forex.data.rates.GBP;
-                forexMsg = `USD/EUR: ${usdEur.toFixed(4)}\nUSD/GBP: ${usdGbp.toFixed(4)}`;
+                const eurusd = await axios.get("https://query1.finance.yahoo.com/v7/finance/quote?symbols=EURUSD=X,GBPUSD=X");
+                const usdEur = 1 / eurusd.data.quoteResponse.result.find(r => r.symbol === "EURUSD=X").regularMarketPrice;
+                const usdGbp = 1 / eurusd.data.quoteResponse.result.find(r => r.symbol === "GBPUSD=X").regularMarketPrice;
+                forexMsg = `💹 Forex Rates:\n• USD/EUR: ${usdEur.toFixed(4)}\n• USD/GBP: ${usdGbp.toFixed(4)}`;
             } catch {
-                forexMsg = "📢 Forex Market Closed বা API Error";
+                forexMsg = "⚠️ Forex Market Closed বা API Error";
             }
         } else {
-            forexMsg = "📢 Forex Market Closed (Weekend / Off Hours)";
+            forexMsg = isWeekend ? "📢 Forex Market Closed (Weekend)" : "📢 Forex Market Closed (Bank Holiday)";
         }
 
-        // -------- US100 (Nasdaq) --------
-        if (day !== 0 && day !== 6 && hour >= 8 && hour < 24) {
+        // -------- US100 --------
+        if (!isWeekend && !isBankHoliday && hour >= 8 && hour < 24) {
             try {
-                const us100 = await yahooFinance.quote('^NDX');
-                const us100Price = us100.regularMarketPrice;
-                us100Msg = us100Price ? `US100: ${us100Price}` : "📢 US100 Data Not Available (Maybe Bank Holiday)";
+                const us100 = await axios.get("https://query1.finance.yahoo.com/v7/finance/quote?symbols=^NDX");
+                const us100Price = us100.data.quoteResponse.result[0]?.regularMarketPrice;
+                us100Msg = us100Price ? `📈 US100 (Nasdaq): ${us100Price}` : "⚠️ US100 Data Not Available";
             } catch {
-                us100Msg = "📢 US100 Data Not Available (API Error)";
+                us100Msg = "⚠️ US100 Data Not Available (API Error)";
             }
         } else {
-            us100Msg = "📢 US100 Market Closed (Weekend / Off Hours)";
+            us100Msg = isWeekend ? "📢 US100 Market Closed (Weekend)" : "📢 US100 Market Closed (Bank Holiday)";
         }
 
-        // -------- Bitcoin 24/7 --------
+        // -------- Bitcoin --------
         try {
-            const btc = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+            const btc = await axios.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd");
             const btcPrice = btc.data.bitcoin.usd;
-            btcMsg = `BTC/USD: ${btcPrice}`;
+            btcMsg = `₿ BTC/USD: ${btcPrice}`;
         } catch {
             btcMsg = "⚠️ BTC Data Fetch Error";
         }
 
         // -------- Final Message --------
-        const message = `📊 Market Update:\n\n${forexMsg}\n${us100Msg}\n${btcMsg}`;
-        bot.sendMessage(config.GROUP_CHAT_ID, message);
+        const message = `📊 *Market Update*\n\n${forexMsg}\n${us100Msg}\n${btcMsg}\n\n🕒 Updated: ${now.toLocaleString("en-BD", { hour12: true })}`;
+        
+        bot.sendMessage(config.GROUP_CHAT_ID, message, { parse_mode: "Markdown" });
 
     } catch (error) {
-        console.error('Market Update Error:', error.message);
+        console.error("Market Update Error:", error.message);
     }
 }
 
-// Test interval: every 5 minutes
-cron.schedule('*/5 * * * *', sendMarketUpdate);
+// প্রতি ৫ মিনিটে টেস্টিং
+cron.schedule("*/5 * * * *", sendMarketUpdate);
 
-// Production interval: every 1 hour
-// cron.schedule('0 * * * *', sendMarketUpdate);
-
-// প্রতি ৫ মিনিটে টেস্টিং জন্য
-// cron.schedule('*/5 * * * *', sendMarketUpdate);
-// 
-// পরে production এ ১ ঘন্টা interval করতে চাইলে:
+// পরে production এ ১ ঘন্টা interval:
 // cron.schedule('0 * * * *', sendMarketUpdate);
 
 // ৪. Message handler (existing Police Mode)
