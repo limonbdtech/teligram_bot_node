@@ -74,27 +74,43 @@ cron.schedule('0 9 * * 5', () => {
 });
 
 // ========================
+// ========================
 // ৩. Market Update (BTC + Forex + US100)
 // ========================
 async function sendMarketUpdate() {
     try {
-        // USD/EUR
-        const eurusd = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=EUR');
-        const usdEur = eurusd.data.rates.EUR;
+        const now = new Date();
+        const hour = now.getUTCHours() + 6; // BD Time (UTC+6)
+        const day = now.getDay(); // 0=Sunday, 6=Saturday
 
-        // USD/GBP
-        const gbpusd = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=GBP');
-        const usdGbp = gbpusd.data.rates.GBP;
+        let forexMsg = "";
+        let us100Msg = "";
 
-        // US 100 (Nasdaq)
-        const us100 = await axios.get('https://query1.finance.yahoo.com/v7/finance/quote?symbols=^NDX');
-        const us100Price = us100.data.quoteResponse.result[0].regularMarketPrice;
+        // Forex Market (Mon-Fri 08:00–00:00)
+        if (day !== 0 && day !== 6 && hour >= 8 && hour < 24) {
+            const eurusd = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=EUR');
+            const usdEur = eurusd.data.rates.EUR;
+            const gbpusd = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=GBP');
+            const usdGbp = gbpusd.data.rates.GBP;
+            forexMsg = `USD/EUR: ${usdEur.toFixed(4)}\nUSD/GBP: ${usdGbp.toFixed(4)}`;
+        } else {
+            forexMsg = "📢 Forex Market Closed (Weekend / Off Hours)";
+        }
 
-        // Bitcoin USD
+        // US100 (Nasdaq)
+        if (day !== 0 && day !== 6 && hour >= 8 && hour < 24) {
+            const us100 = await axios.get('https://query1.finance.yahoo.com/v7/finance/quote?symbols=^NDX');
+            const us100Price = us100.data.quoteResponse.result[0].regularMarketPrice;
+            us100Msg = `US100: ${us100Price}`;
+        } else {
+            us100Msg = "📢 US100 Market Closed (Weekend / Off Hours)";
+        }
+
+        // Bitcoin 24/7
         const btc = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
         const btcPrice = btc.data.bitcoin.usd;
 
-        const message = `📊 Market Update:\n\nUSD/EUR: ${usdEur.toFixed(4)}\nUSD/GBP: ${usdGbp.toFixed(4)}\nUS 100: ${us100Price}\nBTC/USD: ${btcPrice}`;
+        const message = `📊 Market Update:\n\n${forexMsg}\n${us100Msg}\nBTC/USD: ${btcPrice}`;
         bot.sendMessage(config.GROUP_CHAT_ID, message);
 
     } catch (error) {
@@ -104,7 +120,6 @@ async function sendMarketUpdate() {
 
 // প্রতি ১ ঘন্টা Market Update
 cron.schedule('0 * * * *', sendMarketUpdate);
-
 // ========================
 // ৪. Message handler (existing Police Mode)
 // ========================
