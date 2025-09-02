@@ -7,7 +7,6 @@ const cron = require("node-cron");
 const config = require("./config"); // BOT_TOKEN + WEBHOOK_URL
 const yahooFinance = require('yahoo-finance2').default;
 const axios = require('axios');
-const cron = require('node-cron');
 
 const app = express();
 app.use(bodyParser.json());
