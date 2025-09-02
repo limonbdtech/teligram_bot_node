@@ -89,72 +89,88 @@ cron.schedule('0 9 * * 5', () => {
 // ========================
 
 
-async function sendMarketUpdate() {
+
+
+// Bank Holiday API (Nager.Date) → শুধু US মার্কেট চেক করার জন্য
+async function isBankHoliday() {
   try {
-    const now = new Date();
-    const hour = now.getUTCHours() + 6; // BD Time (UTC+6)
-    const day = now.getDay(); // 0=Sunday, 6=Saturday
-
-    let forexMsg = "";
-    let us100Msg = "";
-    let btcMsg = "";
-
-    // -------- Bank Holiday & Weekend Check --------
-    let isWeekend = day === 0 || day === 6;
-    // যদি প্রয়োজন হয়, Finnhub বা অন্য API দিয়ে ব্যাঙ্ক হলিডে চেক করা যাবে
-    let isBankHoliday = false; // temporary false, manual/automatic later
-
-    // -------- Forex (USD/EUR, USD/GBP) --------
-    if (!isWeekend && !isBankHoliday && hour >= 8 && hour < 24) {
-      try {
-        const eurusd = await yf.quote('EURUSD=X'); // EUR/USD
-        const gbpusd = await yf.quote('GBPUSD=X'); // GBP/USD
-        forexMsg = `USD/EUR: ${eurusd.regularMarketPrice.toFixed(4)}\nUSD/GBP: ${gbpusd.regularMarketPrice.toFixed(4)}`;
-      } catch {
-        forexMsg = "⚠️ Forex Market Closed বা API Error";
-      }
-    } else {
-      forexMsg = "📢 Forex Market Closed (Weekend / Bank Holiday / Off Hours)";
-    }
-
-    // -------- US100 (Nasdaq) --------
-    if (!isWeekend && !isBankHoliday && hour >= 8 && hour < 24) {
-      try {
-        const us100 = await yf.quote('^NDX'); // US100 Index
-        if (us100.regularMarketPrice) {
-          us100Msg = `US100: ${us100.regularMarketPrice}`;
-        } else {
-          us100Msg = "📢 US100 Data Not Available (Maybe Bank Holiday)";
-        }
-      } catch {
-        us100Msg = "⚠️ US100 Data Not Available (API Error)";
-      }
-    } else {
-      us100Msg = "📢 US100 Market Closed (Weekend / Bank Holiday / Off Hours)";
-    }
-
-    // -------- Bitcoin 24/7 --------
-    try {
-      const btc = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
-      const btcPrice = btc.data.bitcoin.usd;
-      btcMsg = `₿ BTC/USD: ${btcPrice}`;
-    } catch {
-      btcMsg = "⚠️ BTC Data Fetch Error";
-    }
-
-    // -------- Final Message --------
-    const message = `🤖 Message Police Bot:\n📊 **Market Update**\n\n${forexMsg}\n${us100Msg}\n${btcMsg}\n🕒 Updated: ${now.toLocaleString('en-US', { timeZone: 'Asia/Dhaka' })}`;
-    
-    // Send to Telegram
-    bot.sendMessage(config.GROUP_CHAT_ID, message, { parse_mode: 'Markdown' });
-
-  } catch (error) {
-    console.error('Market Update Error:', error.message);
+    const year = new Date().getFullYear();
+    const url = `https://date.nager.at/api/v3/PublicHolidays/${year}/US`;
+    const res = await axios.get(url);
+    const today = new Date().toISOString().split("T")[0];
+    return res.data.some(holiday => holiday.date === today);
+  } catch (err) {
+    console.error("❌ Holiday API Error:", err.message);
+    return false;
   }
 }
 
-// প্রতি ৫ মিনিটে টেস্টিং জন্য
-// cron.schedule('*/5 * * * *', sendMarketUpdate);
+async function getMarketUpdate() {
+  try {
+    const bankHoliday = await isBankHoliday();
+
+    // Yahoo symbols
+    const forexSymbol = "EURUSD=X"; // Example forex
+    const us100Symbol = "^NDX"; // Nasdaq 100 Index
+    const btcSymbol = "BTC-USD";
+
+    // Fetch data with debugging
+    const forexData = await yahooFinance.quote(forexSymbol).catch(e => {
+      console.error("⚠️ Forex API Error:", e.message);
+      return null;
+    });
+    const us100Data = await yahooFinance.quote(us100Symbol).catch(e => {
+      console.error("⚠️ US100 API Error:", e.message);
+      return null;
+    });
+    const btcData = await yahooFinance.quote(btcSymbol).catch(e => {
+      console.error("⚠️ BTC API Error:", e.message);
+      return null;
+    });
+
+    // Debugging raw data
+    console.log("🔍 Forex Raw:", forexData);
+    console.log("🔍 US100 Raw:", us100Data);
+    console.log("🔍 BTC Raw:", btcData);
+
+    // Formatting message
+    let message = "🤖 Message Police Bot:\n📊 **Market Update**\n";
+
+    if (bankHoliday) {
+      message += "🏦 আজ US Bank Holiday (Market Closed)\n";
+    } else {
+      if (!forexData) {
+        message += "⚠️ Forex Data Not Available (API Error)\n";
+      } else {
+        message += `💱 EUR/USD: ${forexData.regularMarketPrice}\n`;
+      }
+
+      if (!us100Data) {
+        message += "⚠️ US100 Data Not Available (API Error)\n";
+      } else {
+        message += `📈 US100: ${us100Data.regularMarketPrice}\n`;
+      }
+    }
+
+    if (!btcData) {
+      message += "⚠️ BTC Data Not Available (API Error)\n";
+    } else {
+      message += `₿ BTC/USD: ${btcData.regularMarketPrice}\n`;
+    }
+
+    message += `🕒 Updated: ${new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" })}`;
+
+    console.log("\n✅ Final Message:\n", message);
+
+    return message;
+  } catch (err) {
+    console.error("❌ Market Update Error:", err.message);
+    return "⚠️ Market Update Failed!";
+  }
+}
+
+// Run test
+getMarketUpdate();
 
 // পরে production এ ১ ঘন্টা interval করতে চাইলে:
 // cron.schedule('0 * * * *', sendMarketUpdate);
