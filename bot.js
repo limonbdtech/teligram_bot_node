@@ -154,7 +154,7 @@ async function sendMarketUpdate() {
 }
 
 // প্রতি ৫ মিনিটে টেস্টিং জন্য
-cron.schedule('*/5 * * * *', sendMarketUpdate);
+// cron.schedule('*/5 * * * *', sendMarketUpdate);
 
 // পরে production এ ১ ঘন্টা interval করতে চাইলে:
 // cron.schedule('0 * * * *', sendMarketUpdate);
