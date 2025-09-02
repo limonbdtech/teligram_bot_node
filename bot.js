@@ -84,10 +84,9 @@ cron.schedule('0 9 * * 5', () => {
 
 // ========================
 // ========================
-// ========================
 // ৩. Market Update (BTC + Forex + US100 + Holiday Check)
 // ========================
-const FINNHUB_KEY = "d2r8euhr01qlk22s5c90d2r8euhr01qlk22s5c9g";
+const FINNHUB_KEY = config.FINNHUB_KEY; // Finnhub API Key
 
 async function sendMarketUpdate() {
     try {
@@ -97,51 +96,46 @@ async function sendMarketUpdate() {
 
         let forexMsg = "";
         let us100Msg = "";
-        let bankHoliday = false;
-
-        // -------- Check Bank Holiday (US Market) --------
-        try {
-            const calRes = await axios.get(`https://finnhub.io/api/v1/calendar/holidays?country=US&from=${now.toISOString().split("T")[0]}&to=${now.toISOString().split("T")[0]}&token=${FINNHUB_KEY}`);
-            if (calRes.data.holidays && calRes.data.holidays.length > 0) {
-                bankHoliday = true;
-            }
-        } catch {
-            bankHoliday = false; // API fail হলে false ধরে নাও
-        }
+        let btcMsg = "";
 
         // -------- Forex Market (Mon–Fri, 08:00–00:00) --------
-        if (day !== 0 && day !== 6 && hour >= 8 && hour < 24 && !bankHoliday) {
+        if (day !== 0 && day !== 6 && hour >= 8 && hour < 24) {
             try {
-                const forexRes = await axios.get(`https://finnhub.io/api/v1/forex/rates?base=USD&token=${FINNHUB_KEY}`);
-                const usdEur = forexRes.data.rates.EUR;
-                const usdGbp = forexRes.data.rates.GBP;
-                forexMsg = `USD/EUR: ${usdEur.toFixed(4)}\nUSD/GBP: ${usdGbp.toFixed(4)}`;
+                const eurusd = await axios.get(`https://finnhub.io/api/v1/forex/rates?base=USD&token=${FINNHUB_KEY}`);
+                const usdEur = eurusd.data.rates?.EUR;
+                const usdGbp = eurusd.data.rates?.GBP;
+
+                if (usdEur && usdGbp) {
+                    forexMsg = `USD/EUR: ${usdEur.toFixed(4)}\nUSD/GBP: ${usdGbp.toFixed(4)}`;
+                } else {
+                    forexMsg = "📢 Forex Market Closed বা API Error";
+                }
             } catch {
                 forexMsg = "📢 Forex Market Closed বা API Error";
             }
-        } else if (bankHoliday) {
-            forexMsg = "📢 Forex Market Closed (Bank Holiday)";
         } else {
             forexMsg = "📢 Forex Market Closed (Weekend / Off Hours)";
         }
 
         // -------- US100 (Nasdaq) --------
-        if (day !== 0 && day !== 6 && hour >= 8 && hour < 24 && !bankHoliday) {
+        if (day !== 0 && day !== 6 && hour >= 8 && hour < 24) {
             try {
                 const us100 = await axios.get(`https://finnhub.io/api/v1/quote?symbol=^NDX&token=${FINNHUB_KEY}`);
-                const us100Price = us100.data.c;
-                us100Msg = us100Price ? `US100: ${us100Price}` : "📢 US100 Data Not Available";
+                const us100Price = us100.data?.c; // current price
+
+                if (us100Price) {
+                    us100Msg = `US100: ${us100Price}`;
+                } else {
+                    us100Msg = "📢 US100 Data Not Available (Maybe Bank Holiday)";
+                }
             } catch {
-                us100Msg = "📢 US100 Market Closed বা API Error";
+                us100Msg = "📢 US100 Data Not Available (API Error)";
             }
-        } else if (bankHoliday) {
-            us100Msg = "📢 US100 Market Closed (Bank Holiday)";
         } else {
             us100Msg = "📢 US100 Market Closed (Weekend / Off Hours)";
         }
 
         // -------- Bitcoin 24/7 --------
-        let btcMsg = "";
         try {
             const btc = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
             const btcPrice = btc.data.bitcoin.usd;
@@ -159,15 +153,11 @@ async function sendMarketUpdate() {
     }
 }
 
-// প্রতি ১ ঘন্টা Market Update
-// cron.schedule('0 * * * *', sendMarketUpdate);
-
-// // প্রতি ১০ মিনিটে Market Update (Test Mode)
-// cron.schedule('*/10 * * * *', sendMarketUpdate);
-// প্রতি ৫ মিনিটে Market Update (Test Mode)
+// প্রতি ৫ মিনিটে টেস্টিং জন্য
 cron.schedule('*/5 * * * *', sendMarketUpdate);
 
-
+// পরে production এ ১ ঘন্টা interval করতে চাইলে:
+// cron.schedule('0 * * * *', sendMarketUpdate);
 
 // ৪. Message handler (existing Police Mode)
 // ========================
