@@ -187,7 +187,7 @@ async function getMarketUpdate() {
 // ---------------------------
 // Run every 5 minutes
 // ---------------------------
-cron.schedule("0 * * * *", getMarketUpdate);
+cron.schedule("*/5 * * * *", getMarketUpdate);
 
 // পরে production এ ১ ঘন্টা interval করতে চাইলে:
 // cron.schedule('0 * * * *', sendMarketUpdate);
