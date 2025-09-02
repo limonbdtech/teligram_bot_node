@@ -4,8 +4,10 @@ const bodyParser = require("body-parser");
 const TelegramBot = require("node-telegram-bot-api");
 const Sentiment = require("sentiment");
 const cron = require("node-cron");
-const axios = require("axios");
 const config = require("./config"); // BOT_TOKEN + WEBHOOK_URL
+const yahooFinance = require('yahoo-finance2').default;
+const axios = require('axios');
+const cron = require('node-cron');
 
 const app = express();
 app.use(bodyParser.json());
@@ -86,7 +88,7 @@ cron.schedule('0 9 * * 5', () => {
 // ========================
 // ৩. Market Update (BTC + Forex + US100 + Holiday Check)
 // ========================
-const FINNHUB_KEY = config.FINNHUB_KEY; // Finnhub API Key
+
 
 async function sendMarketUpdate() {
     try {
@@ -98,18 +100,13 @@ async function sendMarketUpdate() {
         let us100Msg = "";
         let btcMsg = "";
 
-        // -------- Forex Market (Mon–Fri, 08:00–00:00) --------
+        // -------- Forex Market (Mon–Fri 08:00–00:00) --------
         if (day !== 0 && day !== 6 && hour >= 8 && hour < 24) {
             try {
-                const eurusd = await axios.get(`https://finnhub.io/api/v1/forex/rates?base=USD&token=${FINNHUB_KEY}`);
-                const usdEur = eurusd.data.rates?.EUR;
-                const usdGbp = eurusd.data.rates?.GBP;
-
-                if (usdEur && usdGbp) {
-                    forexMsg = `USD/EUR: ${usdEur.toFixed(4)}\nUSD/GBP: ${usdGbp.toFixed(4)}`;
-                } else {
-                    forexMsg = "📢 Forex Market Closed বা API Error";
-                }
+                const forex = await axios.get('https://api.exchangerate.host/latest?base=USD&symbols=EUR,GBP');
+                const usdEur = forex.data.rates.EUR;
+                const usdGbp = forex.data.rates.GBP;
+                forexMsg = `USD/EUR: ${usdEur.toFixed(4)}\nUSD/GBP: ${usdGbp.toFixed(4)}`;
             } catch {
                 forexMsg = "📢 Forex Market Closed বা API Error";
             }
@@ -120,14 +117,9 @@ async function sendMarketUpdate() {
         // -------- US100 (Nasdaq) --------
         if (day !== 0 && day !== 6 && hour >= 8 && hour < 24) {
             try {
-                const us100 = await axios.get(`https://finnhub.io/api/v1/quote?symbol=^NDX&token=${FINNHUB_KEY}`);
-                const us100Price = us100.data?.c; // current price
-
-                if (us100Price) {
-                    us100Msg = `US100: ${us100Price}`;
-                } else {
-                    us100Msg = "📢 US100 Data Not Available (Maybe Bank Holiday)";
-                }
+                const us100 = await yahooFinance.quote('^NDX');
+                const us100Price = us100.regularMarketPrice;
+                us100Msg = us100Price ? `US100: ${us100Price}` : "📢 US100 Data Not Available (Maybe Bank Holiday)";
             } catch {
                 us100Msg = "📢 US100 Data Not Available (API Error)";
             }
@@ -152,6 +144,12 @@ async function sendMarketUpdate() {
         console.error('Market Update Error:', error.message);
     }
 }
+
+// Test interval: every 5 minutes
+cron.schedule('*/5 * * * *', sendMarketUpdate);
+
+// Production interval: every 1 hour
+// cron.schedule('0 * * * *', sendMarketUpdate);
 
 // প্রতি ৫ মিনিটে টেস্টিং জন্য
 // cron.schedule('*/5 * * * *', sendMarketUpdate);
