@@ -154,13 +154,13 @@ async function sendMarketUpdate() {
     }
 }
 
-// // প্রতি ১ ঘন্টা Market Update
-// cron.schedule('0 * * * *', sendMarketUpdate);
+// প্রতি ১ ঘন্টা Market Update
+cron.schedule('0 * * * *', sendMarketUpdate);
 
 // // প্রতি ১০ মিনিটে Market Update (Test Mode)
 // cron.schedule('*/10 * * * *', sendMarketUpdate);
 // প্রতি ৫ মিনিটে Market Update (Test Mode)
-cron.schedule('*/5 * * * *', sendMarketUpdate);
+// cron.schedule('*/5 * * * *', sendMarketUpdate);
 
 
 
