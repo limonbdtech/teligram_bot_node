@@ -51,9 +51,9 @@ app.post(`/bot${config.BOT_TOKEN}`, (req, res) => {
 // -------------------------------
 // Debug: দেখার জন্য chat.id
 // -------------------------------
-bot.on("message", (msg) => {
-    console.log("Chat ID:", msg.chat.id);
-});
+// bot.on("message", (msg) => {
+//     console.log("Chat ID:", msg.chat.id);
+// });
 
 // ========================
 // ১. নতুন সদস্য স্বাগতম
@@ -171,7 +171,7 @@ async function getMarketUpdate() {
       timeZone: "Asia/Dhaka",
     })}`;
 
-    console.log("\n✅ Final Message:\n", message);
+    // console.log("\n✅ Final Message:\n", message);
 
     // Send to Telegram
     await sendToTelegram(message);
@@ -187,7 +187,7 @@ async function getMarketUpdate() {
 // ---------------------------
 // Run every 5 minutes
 // ---------------------------
-cron.schedule("*/5 * * * *", getMarketUpdate);
+cron.schedule("0 * * * *", getMarketUpdate);
 
 // পরে production এ ১ ঘন্টা interval করতে চাইলে:
 // cron.schedule('0 * * * *', sendMarketUpdate);
