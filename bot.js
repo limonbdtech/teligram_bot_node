@@ -90,7 +90,6 @@ cron.schedule('0 9 * * 5', () => {
 // ========================
 // ৩. Market Update (Formatted Message)
 // ========================
-const axios = require("axios");
 
 // উদাহরণ Bank Holiday List (Bangladesh / US)
 const bankHolidays = [
