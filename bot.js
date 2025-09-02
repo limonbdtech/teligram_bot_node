@@ -190,7 +190,7 @@ async function getMarketUpdate() {
 // cron.schedule("*/5 * * * *", getMarketUpdate);
 // 
 // পরে production এ ১ ঘন্টা interval করতে চাইলে:
-cron.schedule('0 * * * *', sendMarketUpdate);
+cron.schedule('0 * * * *', getMarketUpdate);
 // ৪. Message handler (existing Police Mode)
 // ========================
 bot.on("message", async (msg) => {
