@@ -85,96 +85,95 @@ cron.schedule('0 9 * * 5', () => {
 
 // ========================
 // ========================
-
-import axios from "axios";
-import yahooFinance from "yahoo-finance2";
-import fetch from "node-fetch"; // npm install node-fetch
-
-// 🔑 BotFather থেকে পাওয়া টোকেন & Group Chat ID বসান
-const TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN";
-const TELEGRAM_CHAT_ID = "-1001234567890"; // Group হলে সাধারণত -100 দিয়ে শুরু হয়
-
-// 📤 Telegram মেসেজ পাঠানোর ফাংশন
+// ---------------------------
+// Telegram send message function
+// ---------------------------
 async function sendToTelegram(text) {
   try {
-    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-    await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text,
-        parse_mode: "Markdown", // Bold/Italic কাজ করবে
-      }),
-    });
+    await bot.sendMessage(config.GROUP_CHAT_ID, text, { parse_mode: "Markdown" });
     console.log("✅ Telegram এ পাঠানো হয়েছে");
   } catch (err) {
     console.error("❌ Telegram Error:", err.message);
   }
 }
 
-// 🏦 Bank Holiday চেক
-async function isBankHoliday() {
+// ---------------------------
+// Bank Holiday + Weekend check
+// ---------------------------
+async function isMarketClosed() {
   try {
-    const year = new Date().getFullYear();
+    const today = new Date();
+    // Weekend check
+    if (today.getDay() === 0 || today.getDay() === 6) return true;
+
+    // US Bank Holiday
+    const year = today.getFullYear();
     const url = `https://date.nager.at/api/v3/PublicHolidays/${year}/US`;
     const res = await axios.get(url);
-    const today = new Date().toISOString().split("T")[0];
-    return res.data.some((holiday) => holiday.date === today);
+    const todayStr = today.toISOString().split("T")[0];
+    const isHoliday = res.data.some((holiday) => holiday.date === todayStr);
+    return isHoliday;
   } catch (err) {
     console.error("❌ Holiday API Error:", err.message);
-    return false;
+    return false; // fail-safe: consider market open
   }
 }
 
-// 📊 Market Update
+// ---------------------------
+// Market Update
+// ---------------------------
 async function getMarketUpdate() {
   try {
-    const bankHoliday = await isBankHoliday();
+    const marketClosed = await isMarketClosed();
 
     // Yahoo symbols
-    const forexSymbol = "EURUSD=X";
+    const forexEURUSD = "EURUSD=X";
+    const forexUSDGBP = "GBPUSD=X";
     const us100Symbol = "^NDX";
     const btcSymbol = "BTC-USD";
 
     // Fetch data
-    const forexData = await yahooFinance.quote(forexSymbol).catch(() => null);
+    const forexEURData = await yahooFinance.quote(forexEURUSD).catch(() => null);
+    const forexGBPData = await yahooFinance.quote(forexUSDGBP).catch(() => null);
     const us100Data = await yahooFinance.quote(us100Symbol).catch(() => null);
     const btcData = await yahooFinance.quote(btcSymbol).catch(() => null);
 
-    // মেসেজ তৈরি
+    // Create message
     let message = "🤖 *Message Police Bot:*\n📊 *Market Update*\n";
 
-    if (bankHoliday) {
-      message += "🏦 আজ US Bank Holiday (Market Closed)\n";
+    if (marketClosed) {
+      message += "🏦 মার্কেট বন্ধ (Weekend / US Bank Holiday)\n";
     } else {
-      if (!forexData) {
-        message += "⚠️ Forex Data Not Available (API Error)\n";
+      // Forex
+      if (forexEURData && forexGBPData) {
+        message += `💱 EUR/USD: *${forexEURData.regularMarketPrice}*\n`;
+        message += `💱 USD/GBP: *${(1 / forexGBPData.regularMarketPrice).toFixed(4)}*\n`; // inverse to get USD/GBP
       } else {
-        message += `💱 EUR/USD: *${forexData.regularMarketPrice}*\n`;
+        message += "⚠️ Forex Data Not Available (API Error)\n";
       }
 
-      if (!us100Data) {
-        message += "⚠️ US100 Data Not Available (API Error)\n";
-      } else {
+      // US100
+      if (us100Data) {
         message += `📈 US100: *${us100Data.regularMarketPrice}*\n`;
+      } else {
+        message += "⚠️ US100 Data Not Available (API Error)\n";
       }
     }
 
-    if (!btcData) {
-      message += "⚠️ BTC Data Not Available (API Error)\n";
-    } else {
+    // BTC
+    if (btcData) {
       message += `₿ BTC/USD: *${btcData.regularMarketPrice}*\n`;
+    } else {
+      message += "⚠️ BTC Data Not Available (API Error)\n";
     }
 
     message += `🕒 Updated: ${new Date().toLocaleString("en-US", {
       timeZone: "Asia/Dhaka",
     })}`;
 
-    // ✅ কনসোলেও দেখাবে
     console.log("\n✅ Final Message:\n", message);
 
-    // ✅ টেলিগ্রামে পাঠাবে
+    // Send to Telegram
     await sendToTelegram(message);
 
     return message;
@@ -185,8 +184,10 @@ async function getMarketUpdate() {
   }
 }
 
-// Run test
-  getMarketUpdate();
+// ---------------------------
+// Run every 5 minutes
+// ---------------------------
+cron.schedule("*/5 * * * *", getMarketUpdate);
 
 // পরে production এ ১ ঘন্টা interval করতে চাইলে:
 // cron.schedule('0 * * * *', sendMarketUpdate);
