@@ -85,56 +85,65 @@ cron.schedule('0 9 * * 5', () => {
 
 // ========================
 // ========================
-// ৩. Market Update (Forex + US100 + BTC + Bank Holiday)
-// ========================
 
+import axios from "axios";
+import yahooFinance from "yahoo-finance2";
+import fetch from "node-fetch"; // npm install node-fetch
 
+// 🔑 BotFather থেকে পাওয়া টোকেন & Group Chat ID বসান
+const TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN";
+const TELEGRAM_CHAT_ID = "-1001234567890"; // Group হলে সাধারণত -100 দিয়ে শুরু হয়
 
+// 📤 Telegram মেসেজ পাঠানোর ফাংশন
+async function sendToTelegram(text) {
+  try {
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text,
+        parse_mode: "Markdown", // Bold/Italic কাজ করবে
+      }),
+    });
+    console.log("✅ Telegram এ পাঠানো হয়েছে");
+  } catch (err) {
+    console.error("❌ Telegram Error:", err.message);
+  }
+}
 
-// Bank Holiday API (Nager.Date) → শুধু US মার্কেট চেক করার জন্য
+// 🏦 Bank Holiday চেক
 async function isBankHoliday() {
   try {
     const year = new Date().getFullYear();
     const url = `https://date.nager.at/api/v3/PublicHolidays/${year}/US`;
     const res = await axios.get(url);
     const today = new Date().toISOString().split("T")[0];
-    return res.data.some(holiday => holiday.date === today);
+    return res.data.some((holiday) => holiday.date === today);
   } catch (err) {
     console.error("❌ Holiday API Error:", err.message);
     return false;
   }
 }
 
+// 📊 Market Update
 async function getMarketUpdate() {
   try {
     const bankHoliday = await isBankHoliday();
 
     // Yahoo symbols
-    const forexSymbol = "EURUSD=X"; // Example forex
-    const us100Symbol = "^NDX"; // Nasdaq 100 Index
+    const forexSymbol = "EURUSD=X";
+    const us100Symbol = "^NDX";
     const btcSymbol = "BTC-USD";
 
-    // Fetch data with debugging
-    const forexData = await yahooFinance.quote(forexSymbol).catch(e => {
-      console.error("⚠️ Forex API Error:", e.message);
-      return null;
-    });
-    const us100Data = await yahooFinance.quote(us100Symbol).catch(e => {
-      console.error("⚠️ US100 API Error:", e.message);
-      return null;
-    });
-    const btcData = await yahooFinance.quote(btcSymbol).catch(e => {
-      console.error("⚠️ BTC API Error:", e.message);
-      return null;
-    });
+    // Fetch data
+    const forexData = await yahooFinance.quote(forexSymbol).catch(() => null);
+    const us100Data = await yahooFinance.quote(us100Symbol).catch(() => null);
+    const btcData = await yahooFinance.quote(btcSymbol).catch(() => null);
 
-    // Debugging raw data
-    console.log("🔍 Forex Raw:", forexData);
-    console.log("🔍 US100 Raw:", us100Data);
-    console.log("🔍 BTC Raw:", btcData);
-
-    // Formatting message
-    let message = "🤖 Message Police Bot:\n📊 **Market Update**\n";
+    // মেসেজ তৈরি
+    let message = "🤖 *Message Police Bot:*\n📊 *Market Update*\n";
 
     if (bankHoliday) {
       message += "🏦 আজ US Bank Holiday (Market Closed)\n";
@@ -142,35 +151,42 @@ async function getMarketUpdate() {
       if (!forexData) {
         message += "⚠️ Forex Data Not Available (API Error)\n";
       } else {
-        message += `💱 EUR/USD: ${forexData.regularMarketPrice}\n`;
+        message += `💱 EUR/USD: *${forexData.regularMarketPrice}*\n`;
       }
 
       if (!us100Data) {
         message += "⚠️ US100 Data Not Available (API Error)\n";
       } else {
-        message += `📈 US100: ${us100Data.regularMarketPrice}\n`;
+        message += `📈 US100: *${us100Data.regularMarketPrice}*\n`;
       }
     }
 
     if (!btcData) {
       message += "⚠️ BTC Data Not Available (API Error)\n";
     } else {
-      message += `₿ BTC/USD: ${btcData.regularMarketPrice}\n`;
+      message += `₿ BTC/USD: *${btcData.regularMarketPrice}*\n`;
     }
 
-    message += `🕒 Updated: ${new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" })}`;
+    message += `🕒 Updated: ${new Date().toLocaleString("en-US", {
+      timeZone: "Asia/Dhaka",
+    })}`;
 
+    // ✅ কনসোলেও দেখাবে
     console.log("\n✅ Final Message:\n", message);
+
+    // ✅ টেলিগ্রামে পাঠাবে
+    await sendToTelegram(message);
 
     return message;
   } catch (err) {
     console.error("❌ Market Update Error:", err.message);
+    await sendToTelegram("⚠️ Market Update Failed!");
     return "⚠️ Market Update Failed!";
   }
 }
 
 // Run test
-getMarketUpdate();
+  getMarketUpdate();
 
 // পরে production এ ১ ঘন্টা interval করতে চাইলে:
 // cron.schedule('0 * * * *', sendMarketUpdate);
