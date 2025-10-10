@@ -4,19 +4,19 @@ const bodyParser = require("body-parser");
 const TelegramBot = require("node-telegram-bot-api");
 const Sentiment = require("sentiment");
 const cron = require("node-cron");
-const config = require("./config"); // BOT_TOKEN + WEBHOOK_URL
+const config = require("./config");
 const yahooFinance = require('yahoo-finance2').default;
 const axios = require('axios');
 
 const app = express();
 app.use(bodyParser.json());
 
-// Initialize bot (no polling)
+// Initialize bot
 const bot = new TelegramBot(config.BOT_TOKEN);
 const sentiment = new Sentiment();
 
 // ========================
-// Existing wordlist / Police Mode code unchanged
+// Wordlist / Police Mode
 // ========================
 const wordlist = [
   'চুদি','চোদ','মাগী','হারামি','গাধা','বোকা','চুতমারানি','খানকিরপোলা','শুয়োর',
@@ -46,48 +46,33 @@ app.post(`/bot${config.BOT_TOKEN}`, (req, res) => {
   res.sendStatus(200);
 });
 
-
-
-// -------------------------------
-// Debug: দেখার জন্য chat.id
-// -------------------------------
-// bot.on("message", (msg) => {
-//     console.log("Chat ID:", msg.chat.id);
-// });
-
 // ========================
-// ১. নতুন সদস্য স্বাগতম
+// নতুন সদস্য স্বাগতম
 // ========================
 bot.on("new_chat_members", (msg) => {
-    msg.new_chat_members.forEach(member => {
-        bot.sendMessage(msg.chat.id, `Welcome to the group 🎉 ${member.first_name}`);
-    });
+  msg.new_chat_members.forEach(member => {
+    bot.sendMessage(msg.chat.id, `Welcome to the group 🎉 ${member.first_name}`);
+  });
 });
 
 // ========================
-// ২. টাইম-ভিত্তিক মেসেজ (cron)
+// টাইম-ভিত্তিক মেসেজ (বাংলাদেশ সময়)
 // ========================
-
-// সকাল শুভেচ্ছা 08:00
 cron.schedule('0 8 * * *', () => {
-    bot.sendMessage(config.GROUP_CHAT_ID, 'সুপ্রভাত! 🌞');
-});
+  bot.sendMessage(config.GROUP_CHAT_ID, 'সুপ্রভাত! 🌞');
+}, { timezone: 'Asia/Dhaka' });
 
-// রাত শুভেচ্ছা 21:00
 cron.schedule('0 21 * * *', () => {
-    bot.sendMessage(config.GROUP_CHAT_ID, 'শুভ রাত্রি! 🌙');
-});
+  bot.sendMessage(config.GROUP_CHAT_ID, 'শুভ রাত্রি! 🌙');
+}, { timezone: 'Asia/Dhaka' });
 
-// শুক্রবার জুমা মোবারক 09:00
 cron.schedule('0 9 * * 5', () => {
-    bot.sendMessage(config.GROUP_CHAT_ID, 'জুমা মোবারক! 🕌');
-});
+  bot.sendMessage(config.GROUP_CHAT_ID, 'জুমা মোবারক! 🕌');
+}, { timezone: 'Asia/Dhaka' });
 
 // ========================
+// Telegram send message
 // ========================
-// ---------------------------
-// Telegram send message function
-// ---------------------------
 async function sendToTelegram(text) {
   try {
     await bot.sendMessage(config.GROUP_CHAT_ID, text, { parse_mode: "Markdown" });
@@ -103,19 +88,15 @@ async function sendToTelegram(text) {
 async function isMarketClosed() {
   try {
     const today = new Date();
-    // Weekend check
     if (today.getDay() === 0 || today.getDay() === 6) return true;
-
-    // US Bank Holiday
     const year = today.getFullYear();
     const url = `https://date.nager.at/api/v3/PublicHolidays/${year}/US`;
     const res = await axios.get(url);
     const todayStr = today.toISOString().split("T")[0];
-    const isHoliday = res.data.some((holiday) => holiday.date === todayStr);
-    return isHoliday;
+    return res.data.some((holiday) => holiday.date === todayStr);
   } catch (err) {
     console.error("❌ Holiday API Error:", err.message);
-    return false; // fail-safe: consider market open
+    return false;
   }
 }
 
@@ -125,77 +106,59 @@ async function isMarketClosed() {
 async function getMarketUpdate() {
   try {
     const marketClosed = await isMarketClosed();
-
-    // Yahoo symbols
     const forexEURUSD = "EURUSD=X";
     const forexUSDGBP = "GBPUSD=X";
     const us100Symbol = "^NDX";
     const btcSymbol = "BTC-USD";
 
-    // Fetch data
-    const forexEURData = await yahooFinance.quote(forexEURUSD).catch(() => null);
-    const forexGBPData = await yahooFinance.quote(forexUSDGBP).catch(() => null);
-    const us100Data = await yahooFinance.quote(us100Symbol).catch(() => null);
-    const btcData = await yahooFinance.quote(btcSymbol).catch(() => null);
+    const [forexEURData, forexGBPData, us100Data, btcData] = await Promise.all([
+      yahooFinance.quote(forexEURUSD).catch(() => null),
+      yahooFinance.quote(forexUSDGBP).catch(() => null),
+      yahooFinance.quote(us100Symbol).catch(() => null),
+      yahooFinance.quote(btcSymbol).catch(() => null),
+    ]);
 
-    // Create message
     let message = "🤖 *Message Police Bot:*\n📊 *Market Update*\n";
-
     if (marketClosed) {
       message += "🏦 মার্কেট বন্ধ (Weekend / US Bank Holiday)\n";
     } else {
-      // Forex
       if (forexEURData && forexGBPData) {
         message += `💱 EUR/USD: *${forexEURData.regularMarketPrice}*\n`;
-        message += `💱 USD/GBP: *${(1 / forexGBPData.regularMarketPrice).toFixed(4)}*\n`; // inverse to get USD/GBP
+        message += `💱 USD/GBP: *${(1 / forexGBPData.regularMarketPrice).toFixed(4)}*\n`;
       } else {
-        message += "⚠️ Forex Data Not Available (API Error)\n";
+        message += "⚠️ Forex Data Not Available\n";
       }
 
-      // US100
       if (us100Data) {
         message += `📈 US100: *${us100Data.regularMarketPrice}*\n`;
       } else {
-        message += "⚠️ US100 Data Not Available (API Error)\n";
+        message += "⚠️ US100 Data Not Available\n";
       }
     }
 
-    // BTC
     if (btcData) {
       message += `₿ BTC/USD: *${btcData.regularMarketPrice}*\n`;
-    } else {
-      message += "⚠️ BTC Data Not Available (API Error)\n";
     }
 
     message += `🕒 Updated: ${new Date().toLocaleString("en-US", {
       timeZone: "Asia/Dhaka",
     })}`;
 
-    // console.log("\n✅ Final Message:\n", message);
-
-    // Send to Telegram
     await sendToTelegram(message);
-
-    return message;
   } catch (err) {
     console.error("❌ Market Update Error:", err.message);
     await sendToTelegram("⚠️ Market Update Failed!");
-    return "⚠️ Market Update Failed!";
   }
 }
 
-// ---------------------------
-// Run every 5 minutes
-// ---------------------------
-// cron.schedule("*/5 * * * *", getMarketUpdate);
-// 
-// পরে production এ ১ ঘন্টা interval করতে চাইলে:
-cron.schedule('0 * * * *', getMarketUpdate);
-// ৪. Message handler (existing Police Mode)
+// প্রতি ঘন্টায় আপডেট (বাংলাদেশ সময়)
+cron.schedule('0 * * * *', getMarketUpdate, { timezone: 'Asia/Dhaka' });
+
+// ========================
+// Message Police Mode
 // ========================
 bot.on("message", async (msg) => {
   if (!msg.text) return;
-
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const username = msg.from.username || msg.from.first_name || userId;
@@ -210,7 +173,7 @@ bot.on("message", async (msg) => {
     userOffenses[userId] = (userOffenses[userId] || 0) + 1;
     await bot.banChatMember(chatId, userId).catch(() => {});
 
-    let reason = [];
+    const reason = [];
     if (detectedWords.length > 0) reason.push(`🧨 গালির শব্দ: ${detectedWords.join(", ")}`);
     if (sentimentScore < -2) reason.push(`😡 নেতিবাচক মেসেজ (Score: ${sentimentScore})`);
 
@@ -225,13 +188,9 @@ bot.on("message", async (msg) => {
   }
 });
 
-// Home route
-app.get('/', (req, res) => {
-  res.send('Bot is running ✅');
-});
-
-// Start Express server
+// ========================
+// Server
+// ========================
+app.get('/', (req, res) => res.send('Bot is running ✅'));
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
